@@ -12,10 +12,6 @@ const leaveRequests_1 = require("../entity/leaveRequests/leaveRequests");
 const leaveDetail_1 = require("../entity/leaveDetails/leaveDetail");
 const approvals_1 = require("../entity/approvals/approvals");
 const leaveType_1 = require("../entity/leaveTypes/leaveType");
-const fs_1 = __importDefault(require("fs"));
-console.log('🔍 .env content:\n', fs_1.default.readFileSync('.env', 'utf-8'));
-console.log(process.env.USER_NAME);
-console.log("DB User:", process.env.USERNAME);
 const isSSL = process.env.SSL_MODE === 'REQUIRED';
 const dataSource = new typeorm_1.DataSource({
     type: "mysql",
