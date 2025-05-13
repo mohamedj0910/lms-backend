@@ -1,0 +1,21 @@
+{
+  "compilerOptions": {
+    "experimentalDecorators": true,
+    "emitDecoratorMetadata": true,
+    "target": "ES6",
+    "module": "CommonJS",
+    "outDir": "./dist", 
+    "rootDir": "./src",  // Ensure this points to src/ folder
+    "esModuleInterop": true,
+    "strict": false,  // This can be enabled for better type checking
+    "skipLibCheck": true,
+    "forceConsistentCasingInFileNames": true,
+    "strictPropertyInitialization": false
+  },
+  "include": [
+    "src/**/*.ts"  // Ensure all TypeScript files in src are included
+  ],
+  "exclude": [
+    "node_modules"
+  ]
+}
