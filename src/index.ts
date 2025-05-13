@@ -13,7 +13,7 @@ dotenv.config();
 
 const init = async () => {
   const server: Server = Hapi.server({
-    port: parseInt(process.env.PORT1 || '3000'), // Use dynamic port for Render
+    port: parseInt(process.env.PORT || '3000'), // Use dynamic port for Render
     host: '0.0.0.0',
     routes: {
       cors: {
