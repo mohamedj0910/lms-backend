@@ -80,7 +80,7 @@ class EmployeeServices {
                 .response({ message: 'Login successful' })
                 .state('auth_token', token, {
                 isHttpOnly: true,
-                isSecure: process.env.NODE_ENV === 'production',
+                isSecure: true,
                 isSameSite: 'None',
                 path: '/',
                 ttl: 60 * 60 * 1000,
