@@ -14,6 +14,7 @@ exports.userController = [
         path: '/api/v1/user',
         handler: employeeServices.createEmployee.bind(employeeServices),
         options: {
+            pre: [authenticate_1.authenticate],
             description: 'Create new employee',
             tags: ['api', 'employee'],
             validate: {
@@ -47,6 +48,7 @@ exports.userController = [
         path: '/api/v1/employees',
         handler: employeeServices.getAllEmployees.bind(employeeServices),
         options: {
+            pre: [authenticate_1.authenticate],
             description: 'Get all employees',
             tags: ['api', 'employee'],
         },

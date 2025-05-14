@@ -11,6 +11,7 @@ export const userController: ServerRoute[] = [
     path: '/api/v1/user',
     handler: employeeServices.createEmployee.bind(employeeServices),
     options: {
+      pre: [authenticate],
       description: 'Create new employee',
       tags: ['api', 'employee'],
       validate: {
@@ -44,20 +45,21 @@ export const userController: ServerRoute[] = [
     path: '/api/v1/employees',
     handler: employeeServices.getAllEmployees.bind(employeeServices),
     options: {
+      pre: [authenticate],
       description: 'Get all employees',
       tags: ['api', 'employee'],
     },
   },
   {
-    method :'GET',
-    path:'/api/v1/employeeByManager',
-    options:{pre:[authenticate]},
-    handler:employeeServices.getEmplyeesByManager.bind(employeeServices),
+    method: 'GET',
+    path: '/api/v1/employeeByManager',
+    options: { pre: [authenticate] },
+    handler: employeeServices.getEmplyeesByManager.bind(employeeServices),
   },
   {
-    method :'GET',
-    path:'/api/v1/me',
-    options:{pre:[authenticate]},
-    handler:employeeServices.getEmployee.bind(employeeServices),
+    method: 'GET',
+    path: '/api/v1/me',
+    options: { pre: [authenticate] },
+    handler: employeeServices.getEmployee.bind(employeeServices),
   },
 ];
