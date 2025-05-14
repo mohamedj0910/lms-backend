@@ -56,11 +56,11 @@ const dotenv_1 = __importDefault(require("dotenv"));
 dotenv_1.default.config();
 const init = () => __awaiter(void 0, void 0, void 0, function* () {
     const server = Hapi.server({
-        port: parseInt(process.env.PORT || '3000'), // Use dynamic port for Render
+        port: parseInt(process.env.PORT || '3000'),
         host: '0.0.0.0',
         routes: {
             cors: {
-                origin: ['http://localhost:3001', 'lms--frontend.vercel.app'],
+                origin: ['http://localhost:3001', 'https://lms--frontend.vercel.app/'],
                 credentials: true
             }
         }
