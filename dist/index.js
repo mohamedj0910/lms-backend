@@ -41,50 +41,34 @@ var __awaiter = (this && this.__awaiter) || function (thisArg, _arguments, P, ge
         step((generator = generator.apply(thisArg, _arguments || [])).next());
     });
 };
-var __importDefault = (this && this.__importDefault) || function (mod) {
-    return (mod && mod.__esModule) ? mod : { "default": mod };
-};
 Object.defineProperty(exports, "__esModule", { value: true });
 const Hapi = __importStar(require("@hapi/hapi"));
 const database_1 = require("./db/database");
 const usersController_1 = require("./entity/users/usersController");
+const dotenv = require("dotenv");
 const leaveReqConroller_1 = require("./entity/leaveRequests/leaveReqConroller");
 const leaveDetailsController_1 = require("./entity/leaveDetails/leaveDetailsController");
 const leaveTypeController_1 = require("./entity/leaveTypes/leaveTypeController");
 const approvalController_1 = require("./entity/approvals/approvalController");
-const dotenv_1 = __importDefault(require("dotenv"));
-dotenv_1.default.config();
+dotenv.config();
 const init = () => __awaiter(void 0, void 0, void 0, function* () {
     const server = Hapi.server({
-        port: parseInt(process.env.PORT || '3000'), // Use dynamic port for Render
-        host: '0.0.0.0',
+        port: 3000,
+        host: 'localhost',
         routes: {
             cors: {
-                origin: ['*'],
+                origin: ['http://localhost:3001', 'lms--frontend.vercel.app'],
                 credentials: true
             }
         }
     });
-    try {
-        yield database_1.dataSource.initialize();
-        console.log('📦 Database connected');
-    }
-    catch (error) {
-        console.error('❌ Database connection error:', error);
-        process.exit(1);
-    }
-    server.route([
-        ...usersController_1.userController,
-        ...leaveReqConroller_1.leaveReqController,
-        ...leaveDetailsController_1.leaveDetailsController,
-        ...leaveTypeController_1.leaveTypeController,
-        ...approvalController_1.approvalController
-    ]);
+    server.route([...usersController_1.userController, ...leaveReqConroller_1.leaveReqController, ...leaveDetailsController_1.leaveDetailsController, ...leaveTypeController_1.leaveTypeController, ...approvalController_1.approvalController]);
     yield server.start();
-    console.log('🚀 Server running on %s', server.info.uri);
+    console.log('Server running on %s', server.info.uri);
+    console.log(database_1.dataSource);
 });
 process.on('unhandledRejection', (err) => {
-    console.error('❗ Unhandled Rejection:', err);
+    console.log(err);
     process.exit(1);
 });
 init();
