@@ -14,6 +14,10 @@ const leaveDetailRepo = dataSource.getRepository(LeaveDetail);
 
 export class EmployeeServices {
   async createEmployee(request: Request, h: ResponseToolkit) {
+    const user = request.plugins['user'];
+    if(user.role!='hr'){
+      return h.response({message:'access denied , unautherized'}).code(401)
+    }
     const { email, password, fullName, role, managerEmail }: any = request.payload;
     console.log({ email, password, fullName, role, managerEmail });
   

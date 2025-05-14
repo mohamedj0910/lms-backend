@@ -23,6 +23,10 @@ class EmployeeServices {
     createEmployee(request, h) {
         return __awaiter(this, void 0, void 0, function* () {
             var _a, _b;
+            const user = request.plugins['user'];
+            if (user.role != 'hr') {
+                return h.response({ message: 'access denied , unautherized' }).code(401);
+            }
             const { email, password, fullName, role, managerEmail } = request.payload;
             console.log({ email, password, fullName, role, managerEmail });
             if (role === 'director' && managerEmail) {
