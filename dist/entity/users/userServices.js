@@ -85,9 +85,6 @@ class EmployeeServices {
                 .state('auth_token', token, {
                 isSecure: true, // must be true for cross-site with SameSite=None
                 isHttpOnly: true, // secure against XSS
-                encoding: 'none', // store token as raw string
-                clearInvalid: true,
-                strictHeader: true,
                 ttl: 60 * 60 * 1000,
                 path: '/',
                 isSameSite: 'None',
