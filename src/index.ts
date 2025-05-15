@@ -17,7 +17,7 @@ const init = async () => {
     host: '0.0.0.0',
     routes: {
       cors: {
-        origin: ['http://localhost:3001', 'https://lms--frontend.vercel.app/'],
+        origin: ['http://localhost:3001', 'https://lms--frontend.vercel.app'],
         credentials: true
       }
     }
