@@ -83,10 +83,11 @@ class EmployeeServices {
             return h
                 .response({ message: 'Login successful' })
                 .state('auth_token', token, {
-                isHttpOnly: true,
                 isSecure: true,
-                isSameSite: 'None',
-                path: '/',
+                isHttpOnly: true,
+                encoding: 'base64json',
+                clearInvalid: true,
+                strictHeader: true,
                 ttl: 60 * 60 * 1000,
             });
         });

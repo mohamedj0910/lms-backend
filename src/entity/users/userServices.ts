@@ -15,40 +15,40 @@ const leaveDetailRepo = dataSource.getRepository(LeaveDetail);
 export class EmployeeServices {
   async createEmployee(request: Request, h: ResponseToolkit) {
     const user = request.plugins['user'];
-    if(user.role!='hr'){
-      return h.response({message:'access denied , unautherized'}).code(401)
+    if (user.role != 'hr') {
+      return h.response({ message: 'access denied , unautherized' }).code(401)
     }
     const { email, password, fullName, role, managerEmail }: any = request.payload;
     console.log({ email, password, fullName, role, managerEmail });
-  
+
     if (role === 'director' && managerEmail) {
       return h.response({ message: 'Director should not have a manager.' }).code(400);
     }
-  
+
     await this.getEmail(email);
-  
+
     const hashedPassword = await bcrypt.hash(password, 10);
     const employee = new Employee();
     employee.email = email;
     employee.password = hashedPassword;
     employee.fullName = fullName;
     employee.role = role || 'employee';
-  
+
     if (managerEmail) {
       const manager = await empRepo.findOne({ where: { email: managerEmail } });
-      if (!manager) return h.response({ message: 'Manager not found' }).code(400);   
+      if (!manager) return h.response({ message: 'Manager not found' }).code(400);
       employee.manager = manager;
       if (!manager.isManager) {
         manager.isManager = true;
         await empRepo.save(manager);
       }
     }
-    
-  
+
+
     try {
       const savedEmployee = await empRepo.save(employee);
       console.log('Saved Employee:', savedEmployee);
-  
+
       const leaveTypes = await leaveTypeRepo.find();
       for (const type of leaveTypes) {
         const detail = new LeaveDetail();
@@ -60,14 +60,14 @@ export class EmployeeServices {
         console.log(`Creating leave detail for ${type.type}`);
         await leaveDetailRepo.save(detail);
       }
-  
+
       return h.response({ message: 'Employee created successfully' }).code(201);
     } catch (err) {
       console.error('Error saving employee:', err);
       return h.response({ message: 'Failed to save employee', error: err.message }).code(500);
     }
   }
-  
+
 
   async login(request: Request, h: ResponseToolkit) {
     const { email, password } = request.payload as any;
@@ -86,10 +86,11 @@ export class EmployeeServices {
     return h
       .response({ message: 'Login successful' })
       .state('auth_token', token, {
-        isHttpOnly: true,
         isSecure: true,
-        isSameSite:'None',
-        path: '/',
+        isHttpOnly: true,
+        encoding: 'base64json',
+        clearInvalid: true,
+        strictHeader: true,
         ttl: 60 * 60 * 1000,
       });
   }
@@ -98,7 +99,7 @@ export class EmployeeServices {
     const employees = await empRepo.find({ relations: ['manager'] });
     const user = request?.plugins['user']
     console.log(user)
-    let result = employees.filter((emp) => emp.manager != null && emp.manager.id==user.id)
+    let result = employees.filter((emp) => emp.manager != null && emp.manager.id == user.id)
     const results = result.map((emp) => ({
       id: emp.id,
       email: emp.email,
@@ -128,9 +129,9 @@ export class EmployeeServices {
   async getEmail(email: string) {
     const res = await empRepo.findOne({ where: { email: email } })
   }
-  async getEmployee(request: Request, h: ResponseToolkit){
+  async getEmployee(request: Request, h: ResponseToolkit) {
     const user = request?.plugins['user']
-    const res = await empRepo.findOne({where:{id:user.id}})
+    const res = await empRepo.findOne({ where: { id: user.id } })
     console.log(res)
     return h.response(res)
   }
