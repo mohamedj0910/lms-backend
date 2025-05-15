@@ -65,13 +65,6 @@ const init = () => __awaiter(void 0, void 0, void 0, function* () {
             }
         }
     });
-    server.route({
-        method: 'OPTIONS',
-        path: '/api/{any*}',
-        handler: (request, h) => {
-            return h.response().code(204);
-        }
-    });
     try {
         yield database_1.dataSource.initialize();
         console.log('📦 Database connected');

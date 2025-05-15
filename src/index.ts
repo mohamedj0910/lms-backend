@@ -23,15 +23,6 @@ const init = async () => {
     }
   });
 
-  server.route({
-    method: 'OPTIONS',
-    path: '/api/{any*}',
-    handler: (request, h) => {
-      return h.response().code(204);
-    }
-  });
-
-
 
   try {
     await dataSource.initialize();

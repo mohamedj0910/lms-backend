@@ -83,11 +83,11 @@ class EmployeeServices {
             return h
                 .response({ message: 'Login successful' })
                 .state('auth_token', token, {
-                isSecure: true, // must be true for cross-site with SameSite=None
-                isHttpOnly: true, // secure against XSS
-                ttl: 60 * 60 * 1000,
-                path: '/',
+                isHttpOnly: true,
+                isSecure: true,
                 isSameSite: 'None',
+                path: '/',
+                ttl: 60 * 60 * 1000,
             });
         });
     }
