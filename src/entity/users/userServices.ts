@@ -86,12 +86,14 @@ export class EmployeeServices {
     return h
       .response({ message: 'Login successful' })
       .state('auth_token', token, {
-        isSecure: true,
-        isHttpOnly: true,
-        encoding: 'base64json',
+        isSecure: true,            // must be true for cross-site with SameSite=None
+        isHttpOnly: true,          // secure against XSS
+        encoding: 'none',          // store token as raw string
         clearInvalid: true,
         strictHeader: true,
         ttl: 60 * 60 * 1000,
+        path: '/',
+        isSameSite: 'None',
       });
   }
 

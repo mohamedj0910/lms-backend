@@ -12,7 +12,7 @@ export const leaveDetailsController: ServerRoute[] = [
     path: '/api/v1/leave-details/me',
     handler: leaveDetailService.getMyLeaveDetails,
     options: {
-      pre: [{ method: authenticate }], // your custom auth logic
+      pre: [authenticate], // your custom auth logic
     },
   },
   {
@@ -20,7 +20,7 @@ export const leaveDetailsController: ServerRoute[] = [
     path: '/api/v1/leave-details/subordinates',
     handler: leaveDetailService.getSubordinatesLeaveDetails,
     options: {
-      pre: [{ method: authenticate }],
+      pre: [authenticate],
     },
   },
   {
@@ -28,7 +28,7 @@ export const leaveDetailsController: ServerRoute[] = [
     path: '/api/v1/leave-details/all',
     handler: leaveDetailService.getAllEmployeeLeaveDetails,
     options: {
-      pre: [{ method: authenticate }],
+      pre: [authenticate],
     },
   }
 ];

@@ -11,7 +11,7 @@ exports.leaveDetailsController = [
         path: '/api/v1/leave-details/me',
         handler: leaveDetailService.getMyLeaveDetails,
         options: {
-            pre: [{ method: authenticate_1.authenticate }], // your custom auth logic
+            pre: [authenticate_1.authenticate], // your custom auth logic
         },
     },
     {
@@ -19,7 +19,7 @@ exports.leaveDetailsController = [
         path: '/api/v1/leave-details/subordinates',
         handler: leaveDetailService.getSubordinatesLeaveDetails,
         options: {
-            pre: [{ method: authenticate_1.authenticate }],
+            pre: [authenticate_1.authenticate],
         },
     },
     {
@@ -27,7 +27,7 @@ exports.leaveDetailsController = [
         path: '/api/v1/leave-details/all',
         handler: leaveDetailService.getAllEmployeeLeaveDetails,
         options: {
-            pre: [{ method: authenticate_1.authenticate }],
+            pre: [authenticate_1.authenticate],
         },
     }
 ];

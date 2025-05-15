@@ -13,7 +13,8 @@
     "strictPropertyInitialization": false
   },
   "include": [
-    "src/**/*.ts"  // Ensure all TypeScript files in src are included
+    "src/**/*.ts",  // Ensure all TypeScript files in src are included
+    "src/utils"
   ],
   "exclude": [
     "node_modules"

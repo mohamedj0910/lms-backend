@@ -24,32 +24,34 @@
 
 
 import { Request, ResponseToolkit } from '@hapi/hapi';
-import jwt = require('jsonwebtoken');
+import jwt from 'jsonwebtoken';
 
-export const authenticate = (request: Request, h: ResponseToolkit) => {
-  let token: string | undefined;
+export const authenticate = {
+  assign: 'user',
+  method: async (request: Request, h: ResponseToolkit) => {
+    let token: string | undefined;
 
-  // // Check Authorization header first
-  // const authHeader = request.headers.authorization;
-  // if (authHeader && authHeader.startsWith('Bearer ')) {
-  //   token = authHeader.split(' ')[1];
-  // }
+    // Get the auth token from cookie
+    if (request.state.auth_token) {
+      token = request.state.auth_token;
+    }
 
-  // If no Bearer token, fallback to auth_token cookie
-  if (request.state.auth_token) {
-    token = request.state.auth_token;
-  }
+    if (!token) {
+      return h
+        .response({ message: 'Auth token missing' })
+        .code(401)
+        .takeover();
+    }
 
-  if (!token) {
-    return h.response({ message: 'Auth token missing' }).code(401).takeover();
-  }
-
-  try {
-    const decoded = jwt.verify(token, process.env.JWT_SECRET!);
-    request.plugins['user'] = decoded;
-
-    return h.continue;
-  } catch (err) {
-    return h.response({ message: 'Invalid or expired token' }).code(401).takeover();
+    try {
+      const decoded = jwt.verify(token, process.env.JWT_SECRET!);
+      request.plugins['user'] = decoded;
+      return h.continue;
+    } catch (err) {
+      return h
+        .response({ message: 'Invalid or expired token' })
+        .code(401)
+        .takeover();
+    }
   }
 };
