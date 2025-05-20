@@ -148,7 +148,7 @@ class EmployeeServices {
                 isSecure: true,
                 isSameSite: 'None',
                 path: '/',
-            });
+            }).code(200);
         });
     }
     checkAuthState(request, h) {

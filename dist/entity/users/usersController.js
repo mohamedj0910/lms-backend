@@ -68,11 +68,17 @@ exports.userController = [
     {
         method: 'POST',
         path: '/api/v1/logout',
+        options: {
+            pre: [authenticate_1.authenticate],
+            description: 'Logout user',
+            tags: ['api', 'auth'],
+        },
         handler: employeeServices.logout.bind(employeeServices),
     },
     {
         method: 'GET',
         path: '/api/v1/checkAuth',
+        options: { pre: [authenticate_1.authenticate] },
         handler: employeeServices.checkAuthState.bind(employeeServices)
     }
 ];

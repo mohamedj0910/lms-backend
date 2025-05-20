@@ -65,11 +65,17 @@ export const userController: ServerRoute[] = [
   {
     method: 'POST',
     path: '/api/v1/logout',
+    options: {
+      pre: [authenticate],
+      description: 'Logout user',
+      tags: ['api', 'auth'],
+    },
     handler: employeeServices.logout.bind(employeeServices),
   },
   {
-    method:'GET',
-    path:'/api/v1/checkAuth',
-    handler:employeeServices.checkAuthState.bind(employeeServices)
+    method: 'GET',
+    path: '/api/v1/checkAuth',
+    options:{pre:[authenticate]},
+    handler: employeeServices.checkAuthState.bind(employeeServices)
   }
 ];
