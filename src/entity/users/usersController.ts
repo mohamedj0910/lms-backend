@@ -75,7 +75,6 @@ export const userController: ServerRoute[] = [
   {
     method: 'GET',
     path: '/api/v1/checkAuth',
-    options:{pre:[authenticate]},
     handler: employeeServices.checkAuthState.bind(employeeServices)
   }
 ];

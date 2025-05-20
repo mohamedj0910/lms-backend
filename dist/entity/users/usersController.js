@@ -78,7 +78,6 @@ exports.userController = [
     {
         method: 'GET',
         path: '/api/v1/checkAuth',
-        options: { pre: [authenticate_1.authenticate] },
         handler: employeeServices.checkAuthState.bind(employeeServices)
     }
 ];
