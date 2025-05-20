@@ -41,6 +41,21 @@ class LeaveServices {
             if (duration < 0) {
                 return h.response({ message: 'Invalid start and end date' }).code(400);
             }
+            const existingOverlap = yield leaveRepo.findOne({
+                where: {
+                    employee: { id: employee.id },
+                    status: (0, typeorm_1.In)(['pending', 'approved']), // exclude cancelled
+                    startDate: (0, typeorm_1.LessThanOrEqual)(endDate),
+                    endDate: (0, typeorm_1.MoreThanOrEqual)(startDate),
+                },
+            });
+            if (existingOverlap) {
+                return h
+                    .response({
+                    message: 'You have already applied for leave during this period.',
+                })
+                    .code(409); // Conflict
+            }
             const leaveRequest = new leaveRequests_1.LeaveRequest();
             leaveRequest.employee = employee;
             leaveRequest.leaveType = leaveType;

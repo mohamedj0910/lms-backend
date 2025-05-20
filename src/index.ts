@@ -31,6 +31,7 @@ const init = async () => {
     console.error('❌ Database connection error:', error);
     process.exit(1);
   }
+  
 
 
   server.route([

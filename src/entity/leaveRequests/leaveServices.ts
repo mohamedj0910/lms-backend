@@ -5,7 +5,7 @@ import { Approval } from '../approvals/approvals';
 import { Employee } from '../users/users';
 import { dataSource } from '../../db/database';
 import { LeaveDetail } from '../leaveDetails/leaveDetail';
-import { In } from 'typeorm';
+import { In, LessThanOrEqual, MoreThanOrEqual } from 'typeorm';
 
 const leaveRepo = dataSource.getRepository(LeaveRequest);
 const leaveTypeRepo = dataSource.getRepository(LeaveType);
@@ -22,6 +22,7 @@ export class LeaveServices {
   async createLeaveRequest(request: Request, h: ResponseToolkit) {
     const { startDate, endDate, reason, leaveTypeName } = request.payload as any;
     const user = request.plugins['user'];
+
     const employee = await employeeRepo.findOne({ where: { id: user.id } });
     const leaveType = await leaveTypeRepo.findOne({ where: { type: leaveTypeName } });
 
@@ -31,6 +32,24 @@ export class LeaveServices {
     const duration = this.calculateLeaveDuration(startDate, endDate);
     if (duration < 0) {
       return h.response({ message: 'Invalid start and end date' }).code(400);
+    }
+
+    
+    const existingOverlap = await leaveRepo.findOne({
+      where: {
+        employee: { id: employee.id },
+        status: In(['pending', 'approved']), // exclude cancelled
+        startDate: LessThanOrEqual(endDate),
+        endDate: MoreThanOrEqual(startDate),
+      },
+    });
+
+    if (existingOverlap) {
+      return h
+        .response({
+          message: 'You have already applied for leave during this period.',
+        })
+        .code(409); // Conflict
     }
 
     const leaveRequest = new LeaveRequest();
@@ -46,12 +65,14 @@ export class LeaveServices {
     if (leaveType.type.toLowerCase() === 'sick leave') {
       await this.autoApproveAndDeductLeave(leaveRequest, duration);
     } else {
-      const approvalLevels = duration <= 2 ? ['manager'] : duration <= 5 ? ['manager', 'hr'] : ['manager', 'hr', 'director'];
+      const approvalLevels =
+        duration <= 2 ? ['manager'] : duration <= 5 ? ['manager', 'hr'] : ['manager', 'hr', 'director'];
       await this.createApprovalRecord(leaveRequest, ...approvalLevels);
     }
 
     return h.response({ message: 'Leave request submitted successfully' }).code(201);
   }
+
 
   private async autoApproveAndDeductLeave(leaveRequest: LeaveRequest, duration: number) {
     const approval = new Approval();
@@ -218,7 +239,7 @@ export class LeaveServices {
     }
 
     // Assuming leave.duration is the number of days the employee took for the leave request
-    if (leaveDetail.remaining < leaveDetail.allocated && leave.approval.overallStatus=='approved') {
+    if (leaveDetail.remaining < leaveDetail.allocated && leave.approval.overallStatus == 'approved') {
       leaveDetail.used -= Number(leave.duration); // Reduce the used leave
       leaveDetail.remaining += Number(leave.duration); // Add the canceled days back to remaining leave
     }
