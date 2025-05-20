@@ -155,7 +155,7 @@ class EmployeeServices {
         return __awaiter(this, void 0, void 0, function* () {
             const token = request.state.auth_token;
             if (!token) {
-                return h.response({ message: 'No auth token present' }).code(200);
+                return h.response({ message: 'No auth token present' }).code(401);
             }
             return h.response({ message: 'Auth token is present', token }).code(200);
         });
