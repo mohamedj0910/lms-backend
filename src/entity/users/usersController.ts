@@ -92,7 +92,7 @@ export const userController: ServerRoute[] = [
     handler: employeeServices.getEmpByEmail.bind(employeeServices)
   },
   {
-    method:'POST',
+    method:'PATCH',
     path:'/api/v1/update-employee',
     options:{pre:[authenticate]},
     handler:employeeServices.updateEmployee.bind(employeeServices)

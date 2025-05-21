@@ -136,7 +136,7 @@ export class EmployeeServices {
     const { email } = request.params as any;
     const res = await empRepo.findOne({ where: { email: email } })
     if (!res) {
-      return h.response({ message: "No user found" });
+      return h.response({ message: "No user found" }).code(404);
     }
     return h.response(res).code(200);
   }
@@ -215,7 +215,6 @@ export class EmployeeServices {
     const { email, fullName, role, password, managerEmail }: any = request.payload;
     console.log('Updating employee:', { email, fullName, role, password, managerEmail });
 
-    // Fetch employee to update
     const employee = await empRepo.findOne({ where: { email } });
     if (!employee) {
       return h.response({ message: 'Employee not found' }).code(404);
@@ -225,7 +224,6 @@ export class EmployeeServices {
       return h.response({ message: 'Director should not have a manager.' }).code(400);
     }
 
-    // Update fields
     employee.fullName = fullName ?? employee.fullName;
     employee.role = role ?? employee.role;
 
@@ -241,13 +239,12 @@ export class EmployeeServices {
 
       employee.manager = manager;
 
-      // Mark as manager if not already
       if (!manager.isManager) {
         manager.isManager = true;
         await empRepo.save(manager);
       }
     } else {
-      employee.manager = null; // clear manager if none provided
+      employee.manager = null;
     }
 
     try {

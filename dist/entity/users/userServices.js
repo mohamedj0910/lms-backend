@@ -139,7 +139,7 @@ class EmployeeServices {
             const { email } = request.params;
             const res = yield empRepo.findOne({ where: { email: email } });
             if (!res) {
-                return h.response({ message: "No user found" });
+                return h.response({ message: "No user found" }).code(404);
             }
             return h.response(res).code(200);
         });
@@ -219,7 +219,6 @@ class EmployeeServices {
             }
             const { email, fullName, role, password, managerEmail } = request.payload;
             console.log('Updating employee:', { email, fullName, role, password, managerEmail });
-            // Fetch employee to update
             const employee = yield empRepo.findOne({ where: { email } });
             if (!employee) {
                 return h.response({ message: 'Employee not found' }).code(404);
@@ -227,7 +226,6 @@ class EmployeeServices {
             if (role === 'director' && managerEmail) {
                 return h.response({ message: 'Director should not have a manager.' }).code(400);
             }
-            // Update fields
             employee.fullName = fullName !== null && fullName !== void 0 ? fullName : employee.fullName;
             employee.role = role !== null && role !== void 0 ? role : employee.role;
             if (password) {
@@ -239,14 +237,13 @@ class EmployeeServices {
                     return h.response({ message: 'Manager not found' }).code(400);
                 }
                 employee.manager = manager;
-                // Mark as manager if not already
                 if (!manager.isManager) {
                     manager.isManager = true;
                     yield empRepo.save(manager);
                 }
             }
             else {
-                employee.manager = null; // clear manager if none provided
+                employee.manager = null;
             }
             try {
                 const updatedEmp = yield empRepo.save(employee);

@@ -95,7 +95,7 @@ exports.userController = [
         handler: employeeServices.getEmpByEmail.bind(employeeServices)
     },
     {
-        method: 'POST',
+        method: 'PATCH',
         path: '/api/v1/update-employee',
         options: { pre: [authenticate_1.authenticate] },
         handler: employeeServices.updateEmployee.bind(employeeServices)
