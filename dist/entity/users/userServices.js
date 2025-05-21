@@ -134,9 +134,21 @@ class EmployeeServices {
     getEmployee(request, h) {
         return __awaiter(this, void 0, void 0, function* () {
             const user = request === null || request === void 0 ? void 0 : request.plugins['user'];
-            const res = yield empRepo.findOne({ where: { id: user.id } });
+            const res = yield empRepo.findOne({ where: { id: user.id }, relations: ['manager'] });
             console.log(res);
-            return h.response(res);
+            const data = {
+                id: res.id,
+                email: res.email,
+                fullName: res.fullName,
+                role: res.role,
+                isManager: res.isManager,
+                createdAt: res.createdAt,
+                manager: {
+                    managerEmail: res.manager.email,
+                    managerName: res.manager.fullName
+                }
+            };
+            return h.response(data);
         });
     }
     logout(request, h) {
@@ -158,6 +170,25 @@ class EmployeeServices {
                 return h.response().code(204);
             }
             return h.response({ message: 'Auth token is present', token }).code(200);
+        });
+    }
+    updatePassword(request, h) {
+        return __awaiter(this, void 0, void 0, function* () {
+            const user = request.plugins['user'];
+            const res = yield empRepo.findOne({ where: { id: user.id } });
+            const { currentPassword, newPassword } = request.payload;
+            const isPassword = yield bcrypt.compare(currentPassword, res.password);
+            const isSame = yield bcrypt.compare(newPassword, res.password);
+            if (isSame) {
+                return h.response({ message: "Current password wrong" });
+            }
+            if (!isPassword) {
+                return h.response({ message: "New password and current password can't be same" });
+            }
+            const newHashed = yield bcrypt.hash(newPassword, 10);
+            res.password = newHashed;
+            yield empRepo.save(res);
+            return h.response({ message: "Password changed successfully" }).code(200);
         });
     }
 }

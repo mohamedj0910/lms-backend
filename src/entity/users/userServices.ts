@@ -130,9 +130,21 @@ export class EmployeeServices {
   }
   async getEmployee(request: Request, h: ResponseToolkit) {
     const user = request?.plugins['user']
-    const res = await empRepo.findOne({ where: { id: user.id } })
+    const res = await empRepo.findOne({ where: { id: user.id }, relations: ['manager'] });
     console.log(res)
-    return h.response(res)
+    const data = {
+      id: res.id,
+      email: res.email,
+      fullName: res.fullName,
+      role: res.role,
+      isManager: res.isManager,
+      createdAt: res.createdAt,
+      manager: {
+        managerEmail: res.manager.email,
+        managerName: res.manager.fullName
+      }
+    }
+    return h.response(data)
   }
 
   async logout(request: Request, h: ResponseToolkit) {
@@ -154,5 +166,24 @@ export class EmployeeServices {
     }
 
     return h.response({ message: 'Auth token is present', token }).code(200);
+  }
+
+
+  async updatePassword(request: Request, h: ResponseToolkit) {
+    const user = request.plugins['user']
+    const res = await empRepo.findOne({ where: { id: user.id } })
+    const { currentPassword, newPassword } = request.payload as any;
+    const isPassword = await bcrypt.compare(currentPassword, res.password);
+    const isSame = await bcrypt.compare(newPassword, res.password);
+    if (isSame) {
+      return h.response({ message: "Current password wrong" })
+    }
+    if (!isPassword) {
+      return h.response({ message: "New password and current password can't be same" })
+    }
+    const newHashed = await bcrypt.hash(newPassword,10)
+    res.password = newHashed;
+    await empRepo.save(res)
+    return h.response({ message: "Password changed successfully" }).code(200)
   }
 }

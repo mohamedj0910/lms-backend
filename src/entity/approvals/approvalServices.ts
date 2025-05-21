@@ -80,5 +80,4 @@ export class ApprovalServices {
     await leaveRepo.save(approval.leaveRequest);
     return h.response({ message: `Leave ${status} successfully` }).code(200);
   }
-
 }

@@ -76,5 +76,13 @@ export const userController: ServerRoute[] = [
     method: 'GET',
     path: '/api/v1/checkAuth',
     handler: employeeServices.checkAuthState.bind(employeeServices)
+  },
+  {
+    method: 'PATCH',
+    path: '/api/v1/update-password',
+    options: {
+      pre: [authenticate]
+    },
+    handler: employeeServices.updatePassword.bind(employeeServices)
   }
 ];

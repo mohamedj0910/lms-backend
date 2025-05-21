@@ -79,5 +79,13 @@ exports.userController = [
         method: 'GET',
         path: '/api/v1/checkAuth',
         handler: employeeServices.checkAuthState.bind(employeeServices)
+    },
+    {
+        method: 'PATCH',
+        path: '/api/v1/update-password',
+        options: {
+            pre: [authenticate_1.authenticate]
+        },
+        handler: employeeServices.updatePassword.bind(employeeServices)
     }
 ];
