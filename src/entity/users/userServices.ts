@@ -19,7 +19,6 @@ export class EmployeeServices {
       return h.response({ message: 'access denied , unautherized' }).code(401)
     }
     const { email, password, fullName, role, managerEmail }: any = request.payload;
-    console.log({ email, password, fullName, role, managerEmail });
 
     if (role === 'director' && managerEmail) {
       return h.response({ message: 'Director should not have a manager.' }).code(400);
@@ -48,7 +47,6 @@ export class EmployeeServices {
     try {
       const savedEmployee = await empRepo.save(employee);
       console.log('Saved Employee:', savedEmployee);
-
       const leaveTypes = await leaveTypeRepo.find();
       for (const type of leaveTypes) {
         const detail = new LeaveDetail();
@@ -66,7 +64,9 @@ export class EmployeeServices {
       console.error('Error saving employee:', err);
       return h.response({ message: 'Failed to save employee', error: err.message }).code(500);
     }
+
   }
+
 
 
   async login(request: Request, h: ResponseToolkit) {
@@ -128,21 +128,34 @@ export class EmployeeServices {
   async getEmail(email: string) {
     const res = await empRepo.findOne({ where: { email: email } })
   }
+  async getEmpByEmail(request: Request, h: ResponseToolkit) {
+    const user = request?.plugins['user'];
+    if (user.role != 'hr') {
+      return h.response({ message: "Unauthorized" }).code(401);
+    }
+    const { email } = request.params as any;
+    const res = await empRepo.findOne({ where: { email: email } })
+    if (!res) {
+      return h.response({ message: "No user found" });
+    }
+    return h.response(res).code(200);
+  }
   async getEmployee(request: Request, h: ResponseToolkit) {
     const user = request?.plugins['user']
     const res = await empRepo.findOne({ where: { id: user.id }, relations: ['manager'] });
-    console.log(res)
-    const data = {
+    const data: any = {
       id: res.id,
       email: res.email,
       fullName: res.fullName,
       role: res.role,
       isManager: res.isManager,
       createdAt: res.createdAt,
-      manager: {
+    };
+    if (res.manager) {
+      data.manager = {
         managerEmail: res.manager.email,
-        managerName: res.manager.fullName
-      }
+        managerName: res.manager.fullName,
+      };
     }
     return h.response(data)
   }
@@ -189,6 +202,61 @@ export class EmployeeServices {
     } catch (error) {
       console.error(error);
       return h.response({ message: "An error occurred while updating the password" }).code(500);
+    }
+  }
+
+
+  async updateEmployee(request: Request, h: ResponseToolkit) {
+    const user = request.plugins['user'];
+    if (user.role !== 'hr') {
+      return h.response({ message: 'Unauthorized' }).code(401);
+    }
+
+    const { email, fullName, role, password, managerEmail }: any = request.payload;
+    console.log('Updating employee:', { email, fullName, role, password, managerEmail });
+
+    // Fetch employee to update
+    const employee = await empRepo.findOne({ where: { email } });
+    if (!employee) {
+      return h.response({ message: 'Employee not found' }).code(404);
+    }
+
+    if (role === 'director' && managerEmail) {
+      return h.response({ message: 'Director should not have a manager.' }).code(400);
+    }
+
+    // Update fields
+    employee.fullName = fullName ?? employee.fullName;
+    employee.role = role ?? employee.role;
+
+    if (password) {
+      employee.password = await bcrypt.hash(password, 10);
+    }
+
+    if (managerEmail) {
+      const manager = await empRepo.findOne({ where: { email: managerEmail } });
+      if (!manager) {
+        return h.response({ message: 'Manager not found' }).code(400);
+      }
+
+      employee.manager = manager;
+
+      // Mark as manager if not already
+      if (!manager.isManager) {
+        manager.isManager = true;
+        await empRepo.save(manager);
+      }
+    } else {
+      employee.manager = null; // clear manager if none provided
+    }
+
+    try {
+      const updatedEmp = await empRepo.save(employee);
+      console.log('Updated employee:', updatedEmp);
+      return h.response({ message: 'Employee updated successfully' }).code(200);
+    } catch (err) {
+      console.error('Error updating employee:', err);
+      return h.response({ message: 'Failed to update employee', error: err.message }).code(500);
     }
   }
 

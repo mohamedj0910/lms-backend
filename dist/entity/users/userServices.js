@@ -28,7 +28,6 @@ class EmployeeServices {
                 return h.response({ message: 'access denied , unautherized' }).code(401);
             }
             const { email, password, fullName, role, managerEmail } = request.payload;
-            console.log({ email, password, fullName, role, managerEmail });
             if (role === 'director' && managerEmail) {
                 return h.response({ message: 'Director should not have a manager.' }).code(400);
             }
@@ -131,11 +130,24 @@ class EmployeeServices {
             const res = yield empRepo.findOne({ where: { email: email } });
         });
     }
+    getEmpByEmail(request, h) {
+        return __awaiter(this, void 0, void 0, function* () {
+            const user = request === null || request === void 0 ? void 0 : request.plugins['user'];
+            if (user.role != 'hr') {
+                return h.response({ message: "Unauthorized" }).code(401);
+            }
+            const { email } = request.params;
+            const res = yield empRepo.findOne({ where: { email: email } });
+            if (!res) {
+                return h.response({ message: "No user found" });
+            }
+            return h.response(res).code(200);
+        });
+    }
     getEmployee(request, h) {
         return __awaiter(this, void 0, void 0, function* () {
             const user = request === null || request === void 0 ? void 0 : request.plugins['user'];
             const res = yield empRepo.findOne({ where: { id: user.id }, relations: ['manager'] });
-            console.log(res);
             const data = {
                 id: res.id,
                 email: res.email,
@@ -143,11 +155,13 @@ class EmployeeServices {
                 role: res.role,
                 isManager: res.isManager,
                 createdAt: res.createdAt,
-                manager: {
-                    managerEmail: res.manager.email,
-                    managerName: res.manager.fullName
-                }
             };
+            if (res.manager) {
+                data.manager = {
+                    managerEmail: res.manager.email,
+                    managerName: res.manager.fullName,
+                };
+            }
             return h.response(data);
         });
     }
@@ -194,6 +208,54 @@ class EmployeeServices {
             catch (error) {
                 console.error(error);
                 return h.response({ message: "An error occurred while updating the password" }).code(500);
+            }
+        });
+    }
+    updateEmployee(request, h) {
+        return __awaiter(this, void 0, void 0, function* () {
+            const user = request.plugins['user'];
+            if (user.role !== 'hr') {
+                return h.response({ message: 'Unauthorized' }).code(401);
+            }
+            const { email, fullName, role, password, managerEmail } = request.payload;
+            console.log('Updating employee:', { email, fullName, role, password, managerEmail });
+            // Fetch employee to update
+            const employee = yield empRepo.findOne({ where: { email } });
+            if (!employee) {
+                return h.response({ message: 'Employee not found' }).code(404);
+            }
+            if (role === 'director' && managerEmail) {
+                return h.response({ message: 'Director should not have a manager.' }).code(400);
+            }
+            // Update fields
+            employee.fullName = fullName !== null && fullName !== void 0 ? fullName : employee.fullName;
+            employee.role = role !== null && role !== void 0 ? role : employee.role;
+            if (password) {
+                employee.password = yield bcrypt.hash(password, 10);
+            }
+            if (managerEmail) {
+                const manager = yield empRepo.findOne({ where: { email: managerEmail } });
+                if (!manager) {
+                    return h.response({ message: 'Manager not found' }).code(400);
+                }
+                employee.manager = manager;
+                // Mark as manager if not already
+                if (!manager.isManager) {
+                    manager.isManager = true;
+                    yield empRepo.save(manager);
+                }
+            }
+            else {
+                employee.manager = null; // clear manager if none provided
+            }
+            try {
+                const updatedEmp = yield empRepo.save(employee);
+                console.log('Updated employee:', updatedEmp);
+                return h.response({ message: 'Employee updated successfully' }).code(200);
+            }
+            catch (err) {
+                console.error('Error updating employee:', err);
+                return h.response({ message: 'Failed to update employee', error: err.message }).code(500);
             }
         });
     }
