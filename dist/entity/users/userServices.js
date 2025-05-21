@@ -174,21 +174,27 @@ class EmployeeServices {
     }
     updatePassword(request, h) {
         return __awaiter(this, void 0, void 0, function* () {
-            const user = request.plugins['user'];
-            const res = yield empRepo.findOne({ where: { id: user.id } });
-            const { currentPassword, newPassword } = request.payload;
-            const isPassword = yield bcrypt.compare(currentPassword, res.password);
-            const isSame = yield bcrypt.compare(newPassword, res.password);
-            if (isSame) {
-                return h.response({ message: "Current password wrong" });
+            try {
+                const user = request.plugins['user'];
+                const res = yield empRepo.findOne({ where: { id: user.id } });
+                const { currentPassword, newPassword } = request.payload;
+                const isPassword = yield bcrypt.compare(currentPassword, res.password);
+                if (!isPassword) {
+                    return h.response({ message: "Current password is incorrect" }).code(400);
+                }
+                const isSame = yield bcrypt.compare(newPassword, res.password);
+                if (isSame) {
+                    return h.response({ message: "New password cannot be the same as the current password" }).code(400);
+                }
+                const newHashed = yield bcrypt.hash(newPassword, 10);
+                res.password = newHashed;
+                yield empRepo.save(res);
+                return h.response({ message: "Password changed successfully" }).code(200);
             }
-            if (!isPassword) {
-                return h.response({ message: "New password and current password can't be same" });
+            catch (error) {
+                console.error(error);
+                return h.response({ message: "An error occurred while updating the password" }).code(500);
             }
-            const newHashed = yield bcrypt.hash(newPassword, 10);
-            res.password = newHashed;
-            yield empRepo.save(res);
-            return h.response({ message: "Password changed successfully" }).code(200);
         });
     }
 }

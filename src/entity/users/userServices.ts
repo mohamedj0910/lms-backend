@@ -170,20 +170,26 @@ export class EmployeeServices {
 
 
   async updatePassword(request: Request, h: ResponseToolkit) {
-    const user = request.plugins['user']
-    const res = await empRepo.findOne({ where: { id: user.id } })
-    const { currentPassword, newPassword } = request.payload as any;
-    const isPassword = await bcrypt.compare(currentPassword, res.password);
-    const isSame = await bcrypt.compare(newPassword, res.password);
-    if (isSame) {
-      return h.response({ message: "Current password wrong" })
+    try {
+      const user = request.plugins['user'];
+      const res = await empRepo.findOne({ where: { id: user.id } });
+      const { currentPassword, newPassword } = request.payload as any;
+      const isPassword = await bcrypt.compare(currentPassword, res.password);
+      if (!isPassword) {
+        return h.response({ message: "Current password is incorrect" }).code(400);
+      }
+      const isSame = await bcrypt.compare(newPassword, res.password);
+      if (isSame) {
+        return h.response({ message: "New password cannot be the same as the current password" }).code(400);
+      }
+      const newHashed = await bcrypt.hash(newPassword, 10);
+      res.password = newHashed;
+      await empRepo.save(res);
+      return h.response({ message: "Password changed successfully" }).code(200);
+    } catch (error) {
+      console.error(error);
+      return h.response({ message: "An error occurred while updating the password" }).code(500);
     }
-    if (!isPassword) {
-      return h.response({ message: "New password and current password can't be same" })
-    }
-    const newHashed = await bcrypt.hash(newPassword,10)
-    res.password = newHashed;
-    await empRepo.save(res)
-    return h.response({ message: "Password changed successfully" }).code(200)
   }
+
 }
