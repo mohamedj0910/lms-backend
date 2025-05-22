@@ -134,11 +134,22 @@ export class EmployeeServices {
       return h.response({ message: "Unauthorized" }).code(401);
     }
     const { email } = request.params as any;
-    const res = await empRepo.findOne({ where: { email: email } })
+    const res = await empRepo.findOne({ where: { email: email }, relations: ['manager'] })
     if (!res) {
       return h.response({ message: "No user found" }).code(404);
     }
-    return h.response(res).code(200);
+    const data = {
+      id: res.id,
+      email: res.email,
+      fullName: res.fullName,
+      role: res.role,
+      manager: res.manager ? {
+        id: res.manager.id,
+        fullName: res.manager.fullName,
+        email: res.manager.email,
+      } : undefined
+    }
+    return h.response(data).code(200);
   }
   async getEmployee(request: Request, h: ResponseToolkit) {
     const user = request?.plugins['user']
@@ -151,13 +162,7 @@ export class EmployeeServices {
       isManager: res.isManager,
       createdAt: res.createdAt,
     };
-    if (res.manager) {
-      data.manager = {
-        managerEmail: res.manager.email,
-        managerName: res.manager.fullName,
-      };
-    }
-    return h.response(data)
+    return h.response(res)
   }
 
   async logout(request: Request, h: ResponseToolkit) {
@@ -256,5 +261,7 @@ export class EmployeeServices {
       return h.response({ message: 'Failed to update employee', error: err.message }).code(500);
     }
   }
+
+
 
 }

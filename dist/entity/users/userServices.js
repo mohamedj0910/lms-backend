@@ -137,11 +137,22 @@ class EmployeeServices {
                 return h.response({ message: "Unauthorized" }).code(401);
             }
             const { email } = request.params;
-            const res = yield empRepo.findOne({ where: { email: email } });
+            const res = yield empRepo.findOne({ where: { email: email }, relations: ['manager'] });
             if (!res) {
                 return h.response({ message: "No user found" }).code(404);
             }
-            return h.response(res).code(200);
+            const data = {
+                id: res.id,
+                email: res.email,
+                fullName: res.fullName,
+                role: res.role,
+                manager: res.manager ? {
+                    id: res.manager.id,
+                    fullName: res.manager.fullName,
+                    email: res.manager.email,
+                } : undefined
+            };
+            return h.response(data).code(200);
         });
     }
     getEmployee(request, h) {
@@ -156,13 +167,7 @@ class EmployeeServices {
                 isManager: res.isManager,
                 createdAt: res.createdAt,
             };
-            if (res.manager) {
-                data.manager = {
-                    managerEmail: res.manager.email,
-                    managerName: res.manager.fullName,
-                };
-            }
-            return h.response(data);
+            return h.response(res);
         });
     }
     logout(request, h) {
