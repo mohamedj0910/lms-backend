@@ -34,7 +34,7 @@ export class LeaveServices {
       return h.response({ message: 'Invalid start and end date' }).code(400);
     }
 
-    
+
     const existingOverlap = await leaveRepo.findOne({
       where: {
         employee: { id: employee.id },
@@ -247,6 +247,45 @@ export class LeaveServices {
     await leaveDetailRepo.save(leaveDetail);
 
     return h.response({ message: 'Leave request cancelled and leave details updated' }).code(200);
+  }
+
+
+
+
+  async getSubordinatesLeaveRequests(request: Request, h: ResponseToolkit) {
+    const user = request.plugins['user'];
+
+    // Ensure only a manager can access this endpoint
+    const manager = await employeeRepo.findOne({
+      where: { id: user.id },
+      relations: ['subordinates'],
+    });
+
+    if (!manager || !manager.isManager) {
+      return h.response({ message: 'You are not authorized or not a manager.' }).code(403);
+    }
+
+    const subordinateIds = manager.subordinates.map((emp) => emp.id);
+
+    // Fetch leave requests of subordinates
+    const leaveRequests = await leaveRepo.find({
+      where: {
+        employee: { id: In(subordinateIds) },
+      },
+      relations: ['employee', 'leaveType'],
+      order: { createdAt: 'DESC' },
+    });
+
+    // Format the result
+    const formattedLeaves = leaveRequests.map((leave) => ({
+      id: leave.id,
+      employeeName: leave.employee.fullName,
+      leaveType: leave.leaveType.type,
+      startDate: leave.startDate,
+      endDate: leave.endDate,
+    }));
+
+    return h.response(formattedLeaves).code(200);
   }
 
 }

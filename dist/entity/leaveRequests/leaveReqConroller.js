@@ -68,4 +68,12 @@ exports.leaveReqController = [
             },
         },
     },
+    {
+        method: 'GET',
+        path: '/api/v1/leaves/manager',
+        handler: leaveService.getSubordinatesLeaveRequests.bind(leaveService),
+        options: {
+            pre: [authenticate_1.authenticate]
+        }
+    },
 ];

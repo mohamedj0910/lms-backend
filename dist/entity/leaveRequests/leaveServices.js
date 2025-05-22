@@ -233,5 +233,36 @@ class LeaveServices {
             return h.response({ message: 'Leave request cancelled and leave details updated' }).code(200);
         });
     }
+    getSubordinatesLeaveRequests(request, h) {
+        return __awaiter(this, void 0, void 0, function* () {
+            const user = request.plugins['user'];
+            // Ensure only a manager can access this endpoint
+            const manager = yield employeeRepo.findOne({
+                where: { id: user.id },
+                relations: ['subordinates'],
+            });
+            if (!manager || !manager.isManager) {
+                return h.response({ message: 'You are not authorized or not a manager.' }).code(403);
+            }
+            const subordinateIds = manager.subordinates.map((emp) => emp.id);
+            // Fetch leave requests of subordinates
+            const leaveRequests = yield leaveRepo.find({
+                where: {
+                    employee: { id: (0, typeorm_1.In)(subordinateIds) },
+                },
+                relations: ['employee', 'leaveType'],
+                order: { createdAt: 'DESC' },
+            });
+            // Format the result
+            const formattedLeaves = leaveRequests.map((leave) => ({
+                id: leave.id,
+                employeeName: leave.employee.fullName,
+                leaveType: leave.leaveType.type,
+                startDate: leave.startDate,
+                endDate: leave.endDate,
+            }));
+            return h.response(formattedLeaves).code(200);
+        });
+    }
 }
 exports.LeaveServices = LeaveServices;

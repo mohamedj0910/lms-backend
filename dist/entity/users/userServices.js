@@ -31,7 +31,7 @@ class EmployeeServices {
             if (role === 'director' && managerEmail) {
                 return h.response({ message: 'Director should not have a manager.' }).code(400);
             }
-            yield this.getEmail(email);
+            // await this.getEmail(email);
             const hashedPassword = yield bcrypt.hash(password, 10);
             const employee = new users_1.Employee();
             employee.email = email;

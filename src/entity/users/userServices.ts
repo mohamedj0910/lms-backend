@@ -24,7 +24,7 @@ export class EmployeeServices {
       return h.response({ message: 'Director should not have a manager.' }).code(400);
     }
 
-    await this.getEmail(email);
+    // await this.getEmail(email);
 
     const hashedPassword = await bcrypt.hash(password, 10);
     const employee = new Employee();
