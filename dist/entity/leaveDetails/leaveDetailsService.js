@@ -51,8 +51,8 @@ class LeaveDetailService {
         return __awaiter(this, void 0, void 0, function* () {
             const user = request.plugins['user'];
             const userId = user === null || user === void 0 ? void 0 : user.id;
-            const userRole = user === null || user === void 0 ? void 0 : user.role;
-            if (!userId || userRole !== 'manager') {
+            const emp = yield empRepo.findOne({ where: { id: userId } });
+            if (!userId || emp.isManager) {
                 return h.response({ message: 'Unauthorized or Forbidden' }).code(403);
             }
             const subordinates = yield empRepo.find({

@@ -4,7 +4,6 @@ import { authenticate } from '../../utils/authenticate';
 const leaveDetailService = new LeaveDetailService();
 
 
-const leaveDetail = new LeaveDetailService()
 
 export const leaveDetailsController: ServerRoute[] = [
   {

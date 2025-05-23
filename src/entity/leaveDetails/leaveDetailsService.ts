@@ -43,9 +43,9 @@ export class LeaveDetailService {
   async getSubordinatesLeaveDetails(request: Request, h: ResponseToolkit) {
     const user = request.plugins['user'];
     const userId = user?.id;
-    const userRole = user?.role;
+    const emp = await empRepo.findOne({where:{id:userId}})
 
-    if (!userId || userRole !== 'manager') {
+    if (!userId || emp.isManager) {
       return h.response({ message: 'Unauthorized or Forbidden' }).code(403);
     }
 

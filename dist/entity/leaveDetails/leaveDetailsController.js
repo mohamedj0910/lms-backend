@@ -4,7 +4,6 @@ exports.leaveDetailsController = void 0;
 const leaveDetailsService_1 = require("./leaveDetailsService");
 const authenticate_1 = require("../../utils/authenticate");
 const leaveDetailService = new leaveDetailsService_1.LeaveDetailService();
-const leaveDetail = new leaveDetailsService_1.LeaveDetailService();
 exports.leaveDetailsController = [
     {
         method: 'GET',
