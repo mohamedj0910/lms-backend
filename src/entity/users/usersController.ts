@@ -116,7 +116,7 @@ export const userController: ServerRoute[] = [
     method:'GET',
     path:'/api/v1/is-deleted',
     options:{pre:[authenticate]},
-    handler:employeeServices.deleteOrRestore.bind(employeeServices)
+    handler:employeeServices.getIsDeletedEmployee.bind(employeeServices)
   },
   {
     method:'GET',
