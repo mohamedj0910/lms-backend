@@ -18,7 +18,7 @@ const dataSource = new typeorm_1.DataSource({
     host: process.env.HOST,
     username: process.env.USER_NAME,
     password: process.env.PASSWORD,
-    port: 18127,
+    port: parseInt(process.env.PORT1),
     database: process.env.DATABASE,
     ssl: isSSL ? { rejectUnauthorized: false } : undefined,
     entities: [users_1.Employee, leaveRequests_1.LeaveRequest, leaveDetail_1.LeaveDetail, approvals_1.Approval, leaveType_1.LeaveType],

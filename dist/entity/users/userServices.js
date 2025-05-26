@@ -73,7 +73,7 @@ class EmployeeServices {
     login(request, h) {
         return __awaiter(this, void 0, void 0, function* () {
             const { email, password } = request.payload;
-            const employee = yield empRepo.findOne({ where: { email } });
+            const employee = yield empRepo.findOne({ where: { email, isDelete: false } });
             console.log(employee.id);
             if (!employee || !(yield bcrypt.compare(password, employee.password))) {
                 return h.response({ message: 'Invalid email or password' }).code(401);
@@ -92,7 +92,7 @@ class EmployeeServices {
     }
     getEmplyeesByManager(request, h) {
         return __awaiter(this, void 0, void 0, function* () {
-            const employees = yield empRepo.find({ relations: ['manager'] });
+            const employees = yield empRepo.find({ relations: ['manager'], where: { isDelete: false } });
             const user = request === null || request === void 0 ? void 0 : request.plugins['user'];
             console.log(user);
             let result = employees.filter((emp) => emp.manager != null && emp.manager.id == user.id);
@@ -127,7 +127,7 @@ class EmployeeServices {
     }
     getEmail(email) {
         return __awaiter(this, void 0, void 0, function* () {
-            const res = yield empRepo.findOne({ where: { email: email } });
+            const res = yield empRepo.findOne({ where: { email: email, isDelete: false } });
         });
     }
     getEmpByEmail(request, h) {
@@ -137,7 +137,7 @@ class EmployeeServices {
                 return h.response({ message: "Unauthorized" }).code(401);
             }
             const { email } = request.params;
-            const res = yield empRepo.findOne({ where: { email: email }, relations: ['manager'] });
+            const res = yield empRepo.findOne({ where: { email: email, isDelete: false }, relations: ['manager'] });
             if (!res) {
                 return h.response({ message: "No user found" }).code(404);
             }
@@ -158,7 +158,7 @@ class EmployeeServices {
     getEmployee(request, h) {
         return __awaiter(this, void 0, void 0, function* () {
             const user = request === null || request === void 0 ? void 0 : request.plugins['user'];
-            const res = yield empRepo.findOne({ where: { id: user.id }, relations: ['manager'] });
+            const res = yield empRepo.findOne({ where: { id: user.id, isDelete: false }, relations: ['manager'] });
             const data = {
                 id: res.id,
                 email: res.email,
@@ -167,7 +167,10 @@ class EmployeeServices {
                 isManager: res.isManager,
                 createdAt: res.createdAt,
             };
-            return h.response(res);
+            if (!res) {
+                return h.response({ message: "User not found" }).code(404);
+            }
+            return h.response(data).code(200);
         });
     }
     logout(request, h) {
@@ -195,7 +198,7 @@ class EmployeeServices {
         return __awaiter(this, void 0, void 0, function* () {
             try {
                 const user = request.plugins['user'];
-                const res = yield empRepo.findOne({ where: { id: user.id } });
+                const res = yield empRepo.findOne({ where: { id: user.id, isDelete: false } });
                 const { currentPassword, newPassword } = request.payload;
                 const isPassword = yield bcrypt.compare(currentPassword, res.password);
                 if (!isPassword) {
@@ -224,7 +227,7 @@ class EmployeeServices {
             }
             const { email, fullName, role, password, managerEmail } = request.payload;
             console.log('Updating employee:', { email, fullName, role, password, managerEmail });
-            const employee = yield empRepo.findOne({ where: { email } });
+            const employee = yield empRepo.findOne({ where: { email, isDelete: false } });
             if (!employee) {
                 return h.response({ message: 'Employee not found' }).code(404);
             }
@@ -259,6 +262,95 @@ class EmployeeServices {
                 console.error('Error updating employee:', err);
                 return h.response({ message: 'Failed to update employee', error: err.message }).code(500);
             }
+        });
+    }
+    deleteOrRestore(request, h) {
+        return __awaiter(this, void 0, void 0, function* () {
+            const user = request === null || request === void 0 ? void 0 : request.plugins['user'];
+            if (user.role != 'hr') {
+                return h.response({ message: "Unauthorized" }).code(401);
+            }
+            const { email, action } = request.payload;
+            const emp = yield empRepo.findOne({ where: { email } });
+            const message = {};
+            if (action == 'hardDelete') {
+                yield empRepo.delete(emp);
+                return h.response({ message: "Employee deleted successfully" }).code(200);
+            }
+            else if (action == 'softDelete') {
+                emp.isDelete = true;
+                message.message = "Employee moved to bin";
+            }
+            else if (action == 'restore') {
+                emp.isDelete = false;
+                message.message = "Employee restored successfully";
+            }
+            else {
+                message.message = "Invalid action";
+            }
+            yield empRepo.save(emp);
+            return h.response(Object.assign({}, message)).code(200);
+        });
+    }
+    getIsDeletedEmployee(request, h) {
+        return __awaiter(this, void 0, void 0, function* () {
+            const user = request === null || request === void 0 ? void 0 : request.plugins['user'];
+            if (user.role != 'hr') {
+                return h.response({ message: "Unauthorized" }).code(401);
+            }
+            const employees = yield empRepo.find({ where: { isDelete: true } });
+            const results = employees.map((emp) => ({
+                id: emp.id,
+                email: emp.email,
+                fullName: emp.fullName,
+                role: emp.role,
+                manager: {
+                    id: emp.manager.id,
+                    fullName: emp.manager.fullName,
+                    email: emp.manager.email,
+                }
+            }));
+            return h.response({ data: results, message: "Employees get successfully" });
+        });
+    }
+    reassignManager(request, h) {
+        return __awaiter(this, void 0, void 0, function* () {
+            const user = request.plugins['user'];
+            if (user.role !== 'hr') {
+                return h.response({ message: 'Unauthorized' }).code(401);
+            }
+            const { managerEmail, newManagerEmail } = request.payload;
+            if (managerEmail === newManagerEmail) {
+                return h.response({ message: 'Both emails are the same. No reassignment needed.' }).code(400);
+            }
+            const oldManager = yield empRepo.findOne({ where: { email: managerEmail, isDelete: false } });
+            const newManager = yield empRepo.findOne({ where: { email: newManagerEmail, isDelete: false } });
+            if (!oldManager || !newManager) {
+                return h.response({ message: 'One or both manager accounts not found or are deleted.' }).code(404);
+            }
+            const employeesUnderOldManager = yield empRepo.find({
+                where: {
+                    manager: { id: oldManager.id },
+                },
+            });
+            if (employeesUnderOldManager.length === 0) {
+                return h.response({ message: 'No active employees found under the current manager.' }).code(400);
+            }
+            const updatedEmployees = employeesUnderOldManager.map(emp => {
+                emp.manager = newManager;
+                return emp;
+            });
+            yield empRepo.save(updatedEmployees);
+            const remainingUnderOldManager = yield empRepo.find({
+                where: {
+                    manager: { id: oldManager.id },
+                    isDelete: false,
+                },
+            });
+            oldManager.isManager = remainingUnderOldManager.length > 0;
+            newManager.isManager = true;
+            yield empRepo.save([oldManager, newManager]);
+            return h.response({ message: 'Employees reassigned to new manager successfully.' }).code(200);
         });
     }
 }

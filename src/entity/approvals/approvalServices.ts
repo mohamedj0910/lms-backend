@@ -8,6 +8,8 @@ const approvalRepo = dataSource.getRepository(Approval);
 const leaveRepo = dataSource.getRepository(LeaveRequest);
 const leaveDetailRepo = dataSource.getRepository(LeaveDetail)
 
+
+
 export class ApprovalServices {
   async updateApproval(request: Request, h: ResponseToolkit) {
     const { id } = request.params;

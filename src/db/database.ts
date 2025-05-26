@@ -14,7 +14,7 @@ const dataSource = new DataSource({
   host: process.env.HOST,
   username: process.env.USER_NAME,
   password: process.env.PASSWORD,
-  port:18127,
+  port:parseInt(process.env.PORT1),
   database: process.env.DATABASE,
   ssl: isSSL ? { rejectUnauthorized: false } : undefined,
   entities: [Employee, LeaveRequest, LeaveDetail, Approval, LeaveType],

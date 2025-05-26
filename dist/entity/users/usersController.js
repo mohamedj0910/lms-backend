@@ -99,5 +99,29 @@ exports.userController = [
         path: '/api/v1/update-employee',
         options: { pre: [authenticate_1.authenticate] },
         handler: employeeServices.updateEmployee.bind(employeeServices)
-    }
+    },
+    {
+        method: 'PATCH',
+        path: '/api/v1/delete-or-restore',
+        options: { pre: [authenticate_1.authenticate] },
+        handler: employeeServices.deleteOrRestore.bind(employeeServices)
+    },
+    {
+        method: 'DELETE',
+        path: '/api/v1/employee/delete',
+        options: { pre: [authenticate_1.authenticate] },
+        handler: employeeServices.deleteOrRestore.bind(employeeServices)
+    },
+    {
+        method: 'GET',
+        path: '/api/v1/is-deleted',
+        options: { pre: [authenticate_1.authenticate] },
+        handler: employeeServices.deleteOrRestore.bind(employeeServices)
+    },
+    {
+        method: 'GET',
+        path: '/api/v1/reassign-manager',
+        options: { pre: [authenticate_1.authenticate] },
+        handler: employeeServices.reassignManager.bind(employeeServices)
+    },
 ];

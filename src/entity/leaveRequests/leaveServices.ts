@@ -15,82 +15,136 @@ const leaveDetailRepo = dataSource.getRepository(LeaveDetail);
 
 export class LeaveServices {
   private calculateLeaveDuration(start: string, end: string): number {
-    const diff = (new Date(end).getTime() - new Date(start).getTime()) / (1000 * 60 * 60 * 24);
-    return Math.ceil(diff) + 1;
+    const startDate = new Date(start);
+    const endDate = new Date(end);
+    if (isNaN(startDate.getTime()) || isNaN(endDate.getTime())) {
+      throw new Error('Invalid date format');
+    }
+    const diff = (endDate.getTime() - startDate.getTime()) / (1000 * 60 * 60 * 24);
+    return diff < 0 ? 0 : Math.ceil(diff) || 1; // Same-day leave has duration of 1
   }
 
   async createLeaveRequest(request: Request, h: ResponseToolkit) {
     const { startDate, endDate, reason, leaveTypeName } = request.payload as any;
     const user = request.plugins['user'];
 
-    const employee = await employeeRepo.findOne({ where: { id: user.id } });
-    const leaveType = await leaveTypeRepo.findOne({ where: { type: leaveTypeName } });
-
-    if (!employee) return h.response({ message: 'Employee not found' }).code(400);
-    if (!leaveType) return h.response({ message: 'Leave type not found' }).code(400);
-
-    const duration = this.calculateLeaveDuration(startDate, endDate);
-    if (duration < 0) {
-      return h.response({ message: 'Invalid start and end date' }).code(400);
+    // Validate input
+    if (!startDate || !endDate || !reason || !leaveTypeName) {
+      return h.response({ message: 'Missing required fields' }).code(400);
+    }
+    if (reason.length > 500) {
+      return h.response({ message: 'Reason exceeds maximum length of 500 characters' }).code(400);
     }
 
+    // Validate dates
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    const start = new Date(startDate);
+    const end = new Date(endDate);
+    if (isNaN(start.getTime()) || isNaN(end.getTime())) {
+      return h.response({ message: 'Invalid date format' }).code(400);
+    }
+    if (start < today) {
+      return h.response({ message: 'Start date cannot be in the past' }).code(400);
+    }
+    if (end < start) {
+      return h.response({ message: 'End date cannot be before start date' }).code(400);
+    }
 
-    const existingOverlap = await leaveRepo.findOne({
-      where: {
-        employee: { id: employee.id },
-        status: In(['pending', 'approved']), // exclude cancelled
-        startDate: LessThanOrEqual(endDate),
-        endDate: MoreThanOrEqual(startDate),
-      },
-    });
+    return await dataSource.transaction(async (manager) => {
+      const employee = await manager.findOne(Employee, {
+        where: { id: user.id },
+        relations: ['manager'],
+      });
+      if (!employee) {
+        return h.response({ message: 'Employee not found' }).code(400);
+      }
 
-    if (existingOverlap) {
-      return h
-        .response({
+      const leaveType = await manager.findOne(LeaveType, {
+        where: { type: leaveTypeName },
+      });
+      if (!leaveType) {
+        return h.response({ message: 'Leave type not found' }).code(400);
+      }
+
+      const duration = this.calculateLeaveDuration(startDate, endDate);
+      if (duration === 0) {
+        return h.response({ message: 'Invalid date range' }).code(400);
+      }
+
+      // Check for overlapping leave requests
+      const existingOverlap = await manager.findOne(LeaveRequest, {
+        where: {
+          employee: { id: employee.id },
+          status: In(['pending', 'approved']),
+          startDate: LessThanOrEqual(endDate),
+          endDate: MoreThanOrEqual(startDate),
+        },
+      });
+      if (existingOverlap) {
+        return h.response({
           message: 'You have already applied for leave during this period.',
-        })
-        .code(409); // Conflict
-    }
+        }).code(409);
+      }
 
-    const leaveRequest = new LeaveRequest();
-    leaveRequest.employee = employee;
-    leaveRequest.leaveType = leaveType;
-    leaveRequest.reason = reason;
-    leaveRequest.startDate = startDate;
-    leaveRequest.endDate = endDate;
-    leaveRequest.status = 'pending';
-    leaveRequest.duration = duration;
-    await leaveRepo.save(leaveRequest);
+      const leaveRequest = new LeaveRequest();
+      leaveRequest.employee = employee;
+      leaveRequest.leaveType = leaveType;
+      leaveRequest.reason = reason;
+      leaveRequest.startDate = startDate;
+      leaveRequest.endDate = endDate;
+      leaveRequest.status = 'pending';
+      leaveRequest.duration = duration;
 
-    if (leaveType.type.toLowerCase() === 'sick leave') {
-      await this.autoApproveAndDeductLeave(leaveRequest, duration);
-    } else {
-      const approvalLevels =
-        duration <= 2 ? ['manager'] : duration <= 5 ? ['manager', 'hr'] : ['manager', 'hr', 'director'];
-      await this.createApprovalRecord(leaveRequest, ...approvalLevels);
-    }
+      // Save leave request
+      await manager.save(LeaveRequest, leaveRequest);
 
-    return h.response({ message: 'Leave request submitted successfully' }).code(201);
+      // Handle sick leave auto-approval
+      if (leaveType.type.toLowerCase() === 'sick leave') {
+        const leaveDetail = await manager.findOne(LeaveDetail, {
+          where: {
+            employee: { id: employee.id },
+            leaveType: { id: leaveType.id },
+          },
+          relations: ['employee', 'leaveType'],
+        });
+        if (!leaveDetail || leaveDetail.remaining < duration) {
+          return h.response({ message: 'Insufficient leave balance for sick leave' }).code(400);
+        }
+        await this.autoApproveAndDeductLeave(leaveRequest, duration, manager);
+      } else {
+        // Get approvers based on employee and duration
+        const approvers = await this.findApprovers(employee, duration);
+        await this.createApprovalRecord(leaveRequest, manager, ...approvers);
+      }
+
+      return h.response({ message: 'Leave request submitted successfully' }).code(201);
+    }).catch((error) => {
+      return h.response({ message: `Failed to create leave request: ${error.message}` }).code(500);
+    });
   }
 
-
-  private async autoApproveAndDeductLeave(leaveRequest: LeaveRequest, duration: number) {
+  private async autoApproveAndDeductLeave(
+    leaveRequest: LeaveRequest,
+    duration: number,
+    manager: any,
+  ) {
     const approval = new Approval();
     approval.leaveRequest = leaveRequest;
-    approval.managerApproval = 'approved';
+    approval.managerApproval = 'not_required';
     approval.hrApproval = 'approved';
-    approval.directorApproval = 'approved';
+    approval.directorApproval = 'not_required';
     approval.overallStatus = 'approved';
 
     leaveRequest.status = 'approved';
-    await approvalRepo.save(approval);
-    await leaveRepo.save(leaveRequest);
+    await manager.save(Approval, approval);
+    await manager.save(LeaveRequest, leaveRequest);
 
-    await this.deductLeave(leaveRequest, duration);
+    await this.deductLeave(leaveRequest, duration, manager);
   }
 
-  private async deductLeave(leaveRequest: LeaveRequest, duration: number) {
-    const leaveDetail = await leaveDetailRepo.findOne({
+  private async deductLeave(leaveRequest: LeaveRequest, duration: number, manager: any) {
+    const leaveDetail = await manager.findOne(LeaveDetail, {
       where: {
         employee: { id: leaveRequest.employee.id },
         leaveType: { id: leaveRequest.leaveType.id },
@@ -98,14 +152,20 @@ export class LeaveServices {
       relations: ['employee', 'leaveType'],
     });
 
-    if (!leaveDetail) return;
+    if (!leaveDetail) {
+      throw new Error('Leave details not found');
+    }
+
+    if (leaveDetail.remaining < duration) {
+      throw new Error('Insufficient leave balance');
+    }
 
     leaveDetail.used += duration;
     leaveDetail.remaining -= duration;
-    await leaveDetailRepo.save(leaveDetail);
+    await manager.save(LeaveDetail, leaveDetail);
   }
 
-  private async createApprovalRecord(leaveRequest: LeaveRequest, ...levels: string[]) {
+  private async createApprovalRecord(leaveRequest: LeaveRequest, manager: any, ...levels: string[]) {
     const approval = new Approval();
     approval.leaveRequest = leaveRequest;
 
@@ -114,7 +174,66 @@ export class LeaveServices {
     approval.directorApproval = levels.includes('director') ? 'pending' : 'not_required';
     approval.overallStatus = 'pending';
 
-    await approvalRepo.save(approval);
+    await manager.save(Approval, approval);
+  }
+
+  private async findApprovers(employee: Employee, duration: number): Promise<string[]> {
+    const approvers = new Set<string>();
+
+    // Load employee with manager relationship
+    const fullEmployee = await employeeRepo.findOne({
+      where: { id: employee.id },
+      relations: ['manager'],
+    });
+
+    const hasManager = !!fullEmployee?.manager;
+    const isHR = employee.role === 'hr';
+    const isDirector = employee.role === 'director';
+
+    // Check for HR and director existence
+    const hrExists = await employeeRepo.findOne({ where: { role: 'hr' } });
+    const directorExists = await employeeRepo.findOne({ where: { role: 'director' } });
+
+    // Approval rules
+    if (isDirector) {
+      // Directors require no approval
+      return [];
+    } else if (duration <= 2) {
+      if (hasManager) {
+        approvers.add('manager');
+      } else if (hrExists) {
+        approvers.add('hr');
+      } else if (directorExists) {
+        approvers.add('director');
+      } else {
+        throw new Error('No valid approvers available');
+      }
+    } else if (duration <= 5) {
+      if (hasManager) {
+        approvers.add('manager');
+      }
+      if (!isHR && hrExists) {
+        approvers.add('hr');
+      } else if (!hasManager && !isHR && directorExists) {
+        approvers.add('director');
+      } else if (!hrExists && !directorExists) {
+        throw new Error('No valid approvers available');
+      }
+    } else {
+      if (hasManager) {
+        approvers.add('manager');
+      }
+      if (!isHR && hrExists) {
+        approvers.add('hr');
+      }
+      if (directorExists) {
+        approvers.add('director');
+      } else if (!hasManager && !hrExists) {
+        throw new Error('No valid approvers available');
+      }
+    }
+
+    return Array.from(approvers);
   }
 
   async getAllLeaveRequests(request: Request, h: ResponseToolkit) {
@@ -134,7 +253,6 @@ export class LeaveServices {
 
   async getMyLeaveRequests(request: Request, h: ResponseToolkit) {
     const user = request.plugins['user'];
-    console.log(user)
 
     const leaves = await leaveRepo.find({
       where: { employee: { id: user.id } },
@@ -202,60 +320,64 @@ export class LeaveServices {
     const { id } = request.params;
     const user = request.plugins['user'];
     if (!user) {
-      return h.response({ message: "Un autherized" })
+      return h.response({ message: 'Unauthorized' }).code(401);
     }
-    // Fetch the leave request with the employee and leaveType data
-    const leave = await leaveRepo.findOne({
-      where: { id },
-      relations: ['employee', 'leaveType'],
+
+    return await dataSource.transaction(async (manager) => {
+      const leave = await manager.findOne(LeaveRequest, {
+        where: { id },
+        relations: ['employee', 'leaveType', 'approval'],
+      });
+
+      if (!leave) {
+        return h.response({ message: 'Leave request not found' }).code(404);
+      }
+
+      const today = new Date();
+      today.setHours(0, 0, 0, 0);
+      const leaveStart = new Date(leave.startDate);
+
+      if (leave.employee.id !== user.id || leaveStart <= today) {
+        return h.response({ message: 'Cannot cancel this leave request' }).code(403);
+      }
+
+      if (leave.status === 'cancelled' || leave.status === 'rejected') {
+        return h.response({ message: `Cannot cancel a ${leave.status} leave request` }).code(400);
+      }
+
+      leave.status = 'cancelled';
+      await manager.save(LeaveRequest, leave);
+
+      if (leave.approval && leave.approval.overallStatus === 'approved') {
+        const leaveDetail = await manager.findOne(LeaveDetail, {
+          where: {
+            employee: { id: leave.employee.id },
+            leaveType: { id: leave.leaveType.id },
+          },
+          relations: ['employee', 'leaveType'],
+        });
+
+        if (!leaveDetail) {
+          return h.response({ message: 'Leave details not found' }).code(404);
+        }
+
+        leaveDetail.used = Math.max(0, leaveDetail.used - Number(leave.duration));
+        leaveDetail.remaining = Math.min(
+          leaveDetail.allocated,
+          leaveDetail.remaining + Number(leave.duration),
+        );
+        await manager.save(LeaveDetail, leaveDetail);
+      }
+
+      return h.response({ message: 'Leave request cancelled and leave details updated' }).code(200);
+    }).catch((error) => {
+      return h.response({ message: `Failed to cancel leave request: ${error.message}` }).code(500);
     });
-
-    if (!leave) {
-      return h.response({ message: 'Leave request not found' }).code(404);
-    }
-
-    const currentDate = new Date().toISOString().split('T')[0];
-
-    // Check if the leave request is made by the user and if the leave is in the future
-    if (leave.employee.id !== user.id || leave.startDate <= currentDate) {
-      return h.response({ message: 'Cannot cancel this leave request' }).code(403);
-    }
-
-    // Set leave status to 'cancelled'
-    leave.status = 'cancelled';
-    await leaveRepo.save(leave);
-
-    // Update the employee's leave details (allocated, used, remaining)
-    const leaveDetail = await leaveDetailRepo.findOne({
-      where: {
-        employee: { id: leave.employee.id },
-        leaveType: { id: leave.leaveType.id },
-      },
-      relations: ['employee', 'leaveType'],
-    });
-
-    if (!leaveDetail) {
-      return h.response({ message: 'Leave details not found for this leave type' }).code(404);
-    }
-
-    // Assuming leave.duration is the number of days the employee took for the leave request
-    if (leaveDetail.remaining < leaveDetail.allocated && leave.approval.overallStatus == 'approved') {
-      leaveDetail.used -= Number(leave.duration); // Reduce the used leave
-      leaveDetail.remaining += Number(leave.duration); // Add the canceled days back to remaining leave
-    }
-
-    await leaveDetailRepo.save(leaveDetail);
-
-    return h.response({ message: 'Leave request cancelled and leave details updated' }).code(200);
   }
-
-
-
 
   async getSubordinatesLeaveRequests(request: Request, h: ResponseToolkit) {
     const user = request.plugins['user'];
 
-    // Ensure only a manager can access this endpoint
     const manager = await employeeRepo.findOne({
       where: { id: user.id },
       relations: ['subordinates'],
@@ -267,7 +389,6 @@ export class LeaveServices {
 
     const subordinateIds = manager.subordinates.map((emp) => emp.id);
 
-    // Fetch leave requests of subordinates
     const leaveRequests = await leaveRepo.find({
       where: {
         employee: { id: In(subordinateIds) },
@@ -276,7 +397,6 @@ export class LeaveServices {
       order: { createdAt: 'DESC' },
     });
 
-    // Format the result
     const formattedLeaves = leaveRequests.map((leave) => ({
       id: leave.id,
       employeeName: leave.employee.fullName,
@@ -287,5 +407,4 @@ export class LeaveServices {
 
     return h.response(formattedLeaves).code(200);
   }
-
 }

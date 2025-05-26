@@ -34,7 +34,7 @@ export class LeaveRequest {
   reason: string;
 
   @Column('int')
-  duration:Number;
+  duration:number;
 
   @Column({
     type: 'enum',

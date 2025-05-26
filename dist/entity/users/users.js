@@ -46,6 +46,10 @@ __decorate([
     __metadata("design:type", Boolean)
 ], Employee.prototype, "isManager", void 0);
 __decorate([
+    (0, typeorm_1.Column)({ default: false }),
+    __metadata("design:type", Boolean)
+], Employee.prototype, "isDelete", void 0);
+__decorate([
     (0, typeorm_1.ManyToOne)(() => Employee, (employee) => employee.subordinates, { nullable: true }),
     (0, typeorm_1.JoinColumn)({ name: 'managerId' }),
     __metadata("design:type", Employee)

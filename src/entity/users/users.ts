@@ -36,6 +36,9 @@ export class Employee {
   @Column({ default: false })
   isManager: boolean;
 
+  @Column({default:false})
+  isDelete : boolean
+
 
   @ManyToOne(() => Employee, (employee) => employee.subordinates, { nullable: true })
   @JoinColumn({ name: 'managerId' })
