@@ -37,7 +37,7 @@ export class Employee {
   isManager: boolean;
 
   @Column({default:false})
-  isDelete : boolean
+  isDeleted : boolean
 
 
   @ManyToOne(() => Employee, (employee) => employee.subordinates, { nullable: true })

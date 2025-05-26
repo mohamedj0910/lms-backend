@@ -8,7 +8,6 @@ import { Approval } from "../entity/approvals/approvals";
 import { LeaveType } from "../entity/leaveTypes/leaveType";
 
 const isSSL = process.env.SSL_MODE === 'REQUIRED';
-
 const dataSource = new DataSource({
   type: "mysql",
   host: process.env.HOST,

@@ -72,12 +72,10 @@ export class EmployeeServices {
 
   async login(request: Request, h: ResponseToolkit) {
     const { email, password } = request.payload as any;
-    const employee = await empRepo.findOne({ where: { email, isDelete: false } });
-    console.log(employee.id)
+    const employee = await empRepo.findOne({ where: { email, isDeleted: false } });
     if (!employee || !(await bcrypt.compare(password, employee.password))) {
       return h.response({ message: 'Invalid email or password' }).code(401);
     }
-
     const token = jwt.sign(
       { id: employee.id, role: employee.role },
       process.env.JWT_SECRET as string,
@@ -96,7 +94,7 @@ export class EmployeeServices {
   }
 
   async getEmplyeesByManager(request: Request, h: ResponseToolkit) {
-    const employees = await empRepo.find({ relations: ['manager'], where: { isDelete: false } });
+    const employees = await empRepo.find({ relations: ['manager'], where: { isDeleted: false } });
     const user = request?.plugins['user']
     console.log(user)
     let result = employees.filter((emp) => emp.manager != null && emp.manager.id == user.id)
@@ -127,7 +125,7 @@ export class EmployeeServices {
   }
 
   async getEmail(email: string) {
-    const res = await empRepo.findOne({ where: { email: email,isDelete:false } })
+    const res = await empRepo.findOne({ where: { email: email,isDeleted:false } })
   }
   async getEmpByEmail(request: Request, h: ResponseToolkit) {
     const user = request?.plugins['user'];
@@ -135,7 +133,7 @@ export class EmployeeServices {
       return h.response({ message: "Unauthorized" }).code(401);
     }
     const { email } = request.params as any;
-    const res = await empRepo.findOne({ where: { email: email,isDelete:false }, relations: ['manager'] })
+    const res = await empRepo.findOne({ where: { email: email,isDeleted:false }, relations: ['manager'] })
     if (!res) {
       return h.response({ message: "No user found" }).code(404);
     }
@@ -154,7 +152,7 @@ export class EmployeeServices {
   }
   async getEmployee(request: Request, h: ResponseToolkit) {
     const user = request?.plugins['user']
-    const res = await empRepo.findOne({ where: { id: user.id,isDelete:false }, relations: ['manager'] });
+    const res = await empRepo.findOne({ where: { id: user.id,isDeleted:false }, relations: ['manager'] });
     const data: any = {
       id: res.id,
       email: res.email,
@@ -194,7 +192,7 @@ export class EmployeeServices {
   async updatePassword(request: Request, h: ResponseToolkit) {
     try {
       const user = request.plugins['user'];
-      const res = await empRepo.findOne({ where: { id: user.id,isDelete:false } });
+      const res = await empRepo.findOne({ where: { id: user.id,isDeleted:false } });
       const { currentPassword, newPassword } = request.payload as any;
       const isPassword = await bcrypt.compare(currentPassword, res.password);
       if (!isPassword) {
@@ -224,7 +222,7 @@ export class EmployeeServices {
     const { email, fullName, role, password, managerEmail }: any = request.payload;
     console.log('Updating employee:', { email, fullName, role, password, managerEmail });
 
-    const employee = await empRepo.findOne({ where: { email,isDelete:false } });
+    const employee = await empRepo.findOne({ where: { email,isDeleted:false } });
     if (!employee) {
       return h.response({ message: 'Employee not found' }).code(404);
     }
@@ -279,11 +277,11 @@ export class EmployeeServices {
       return h.response({ message: "Employee deleted successfully" }).code(200)
     }
     else if (action == 'softDelete') {
-      emp.isDelete = true;
+      emp.isDeleted = true;
       message.message = "Employee moved to bin"
     }
     else if (action == 'restore') {
-      emp.isDelete = false;
+      emp.isDeleted = false;
       message.message = "Employee restored successfully"
     }
     else {
@@ -298,19 +296,15 @@ export class EmployeeServices {
     if (user.role != 'hr') {
       return h.response({ message: "Unauthorized" }).code(401);
     }
-    const employees = await empRepo.find({ where: { isDelete: true } });
-    const results = employees.map((emp) => ({
-      id: emp.id,
-      email: emp.email,
-      fullName: emp.fullName,
-      role: emp.role,
-      manager: {
-        id: emp.manager.id,
-        fullName: emp.manager.fullName,
-        email: emp.manager.email,
+    const employees = await empRepo.find({ where: { isDeleted: true } });
+    const res = employees.map((emp)=>{
+      return {
+        id:emp.id,
+        fullName:emp.fullName,
+        email:emp.email,
       }
-    }));
-    return h.response({ data: results, message: "Employees get successfully" })
+    })
+    return h.response({ res, message: "Employees get successfully" })
   }
 
   async reassignManager(request: Request, h: ResponseToolkit) {
@@ -325,8 +319,8 @@ export class EmployeeServices {
       return h.response({ message: 'Both emails are the same. No reassignment needed.' }).code(400);
     }
 
-    const oldManager = await empRepo.findOne({ where: { email: managerEmail, isDelete: false } });
-    const newManager = await empRepo.findOne({ where: { email: newManagerEmail, isDelete: false } });
+    const oldManager = await empRepo.findOne({ where: { email: managerEmail, isDeleted: false } });
+    const newManager = await empRepo.findOne({ where: { email: newManagerEmail, isDeleted: false } });
 
     if (!oldManager || !newManager) {
       return h.response({ message: 'One or both manager accounts not found or are deleted.' }).code(404);
@@ -352,7 +346,7 @@ export class EmployeeServices {
     const remainingUnderOldManager = await empRepo.find({
       where: {
         manager: { id: oldManager.id },
-        isDelete: false,
+        isDeleted: false,
       },
     });
 
