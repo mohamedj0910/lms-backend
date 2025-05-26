@@ -8,7 +8,7 @@ const employeeServices = new EmployeeServices();
 export const userController: ServerRoute[] = [
   {
     method: 'POST',
-    path: '/api/v1/user',
+    path: '/api/v1/register',
     handler: employeeServices.createEmployee.bind(employeeServices),
     options: {
       pre: [authenticate],

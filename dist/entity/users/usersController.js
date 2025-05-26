@@ -11,7 +11,7 @@ const employeeServices = new userServices_1.EmployeeServices();
 exports.userController = [
     {
         method: 'POST',
-        path: '/api/v1/user',
+        path: '/api/v1/register',
         handler: employeeServices.createEmployee.bind(employeeServices),
         options: {
             pre: [authenticate_1.authenticate],

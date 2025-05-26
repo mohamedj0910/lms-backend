@@ -273,7 +273,10 @@ export class EmployeeServices {
     const emp = await empRepo.findOne({ where: { email } });
     const message: any = {}
     if (action == 'hardDelete') {
-      await empRepo.delete(emp)
+      const deleted = await empRepo.delete(emp.id);
+      if(!deleted.affected){
+        return h.response({ message: "Deletion failed" }).code(404);
+      }
       return h.response({ message: "Employee deleted successfully" }).code(200)
     }
     else if (action == 'softDelete') {

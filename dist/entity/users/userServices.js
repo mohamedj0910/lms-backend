@@ -273,7 +273,10 @@ class EmployeeServices {
             const emp = yield empRepo.findOne({ where: { email } });
             const message = {};
             if (action == 'hardDelete') {
-                yield empRepo.delete(emp);
+                const deleted = yield empRepo.delete(emp.id);
+                if (!deleted.affected) {
+                    return h.response({ message: "Deletion failed" }).code(404);
+                }
                 return h.response({ message: "Employee deleted successfully" }).code(200);
             }
             else if (action == 'softDelete') {
