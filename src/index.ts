@@ -14,7 +14,7 @@ dotenv.config();
 const init = async () => {
   const server: Server = Hapi.server({
     port: parseInt(process.env.PORT || '3000'),
-    host: 'localhost',
+    host: '0.0.0.0',
     routes: {
       cors: {
         origin: ['http://localhost:3001', 'https://lms--frontend.vercel.app'],
