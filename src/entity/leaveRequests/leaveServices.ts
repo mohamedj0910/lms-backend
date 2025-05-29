@@ -280,8 +280,18 @@ export class LeaveServices {
       relations: ['employee', 'leaveType', 'approval'],
       order: { createdAt: 'DESC' },
     });
-
-    return h.response(requests).code(200);
+    const res = requests.map((req) => {
+      return {
+        id: req.id,
+        fullName: req.employee.fullName,
+        leaveType: req.leaveType.type,
+        duration: req.duration,
+        startDate: req.startDate,
+        endDate: req.endDate,
+        reason: req.reason,
+      }
+    })
+    return h.response(res).code(200);
   }
 
   async getPendingHRApprovals(request: Request, h: ResponseToolkit) {
@@ -297,7 +307,19 @@ export class LeaveServices {
     });
 
     const pending = approvals.map((a) => a.leaveRequest);
-    return h.response(pending).code(200);
+    const res = pending.map((req) => {
+      return {
+        id: req.id,
+        fullName: req.employee.fullName,
+        leaveType: req.leaveType.type,
+        duration: req.duration,
+        startDate: req.startDate,
+        endDate: req.endDate,
+        reason: req.reason,
+      }
+    })
+    console.log(res)
+    return h.response(res).code(200);
   }
 
   async getPendingDirectorApprovals(request: Request, h: ResponseToolkit) {
@@ -387,24 +409,44 @@ export class LeaveServices {
       return h.response({ message: 'You are not authorized or not a manager.' }).code(403);
     }
 
-    const subordinateIds = manager.subordinates.map((emp) => emp.id);
+    const subordinates = manager.subordinates;
 
+    if (!subordinates.length) {
+      return h.response([]).code(200);
+    }
+
+    const subordinateIds = subordinates.map((emp) => emp.id);
+
+    // Fetch leave requests for all subordinates
     const leaveRequests = await leaveRepo.find({
-      where: {
-        employee: { id: In(subordinateIds) },
-      },
+      where: { employee: { id: In(subordinateIds) }, status: 'approved' },
       relations: ['employee', 'leaveType'],
       order: { createdAt: 'DESC' },
     });
 
-    const formattedLeaves = leaveRequests.map((leave) => ({
-      id: leave.id,
-      employeeName: leave.employee.fullName,
-      leaveType: leave.leaveType.type,
-      startDate: leave.startDate,
-      endDate: leave.endDate,
+    // Map leaves by employee ID
+    const leavesByEmployeeId: Record<string, any[]> = {};
+    leaveRequests.forEach((leave) => {
+      const empId = leave.employee.id;
+      if (!leavesByEmployeeId[empId]) {
+        leavesByEmployeeId[empId] = [];
+      }
+      leavesByEmployeeId[empId].push({
+        id: leave.id,
+        leaveType: leave.leaveType.type,
+        startDate: leave.startDate,
+        endDate: leave.endDate,
+      });
+    });
+
+    // Construct final response
+    const response = subordinates.map((emp) => ({
+      employeeName: emp.fullName,
+      role: emp.role,
+      leaveRequests: leavesByEmployeeId[emp.id] || [],
     }));
 
-    return h.response(formattedLeaves).code(200);
+    return h.response(response).code(200);
   }
+
 }

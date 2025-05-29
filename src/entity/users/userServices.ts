@@ -47,7 +47,6 @@ export class EmployeeServices {
 
     try {
       const savedEmployee = await empRepo.save(employee);
-      console.log('Saved Employee:', savedEmployee);
       const leaveTypes = await leaveTypeRepo.find();
       for (const type of leaveTypes) {
         const detail = new LeaveDetail();
@@ -56,7 +55,6 @@ export class EmployeeServices {
         detail.allocated = type.maxLeave ?? 0;
         detail.used = 0;
         detail.remaining = type.maxLeave ?? 0;
-        console.log(`Creating leave detail for ${type.type}`);
         await leaveDetailRepo.save(detail);
       }
 
@@ -94,9 +92,12 @@ export class EmployeeServices {
   }
 
   async getEmplyeesByManager(request: Request, h: ResponseToolkit) {
-    const employees = await empRepo.find({ relations: ['manager'], where: { isDeleted: false } });
     const user = request?.plugins['user']
-    console.log(user)
+    const curUser =await empRepo.findOne({where:{id:user.id}});
+    if(!curUser.isManager){
+      return h.response({message:"You are unauthorized"}).code(401)
+    }
+    const employees = await empRepo.find({ relations: ['manager'], where: { isDeleted: false } });
     let result = employees.filter((emp) => emp.manager != null && emp.manager.id == user.id)
     const results = result.map((emp) => ({
       id: emp.id,
@@ -114,7 +115,8 @@ export class EmployeeServices {
 
 
   async getAllEmployees(request: Request, h: ResponseToolkit) {
-    const employees = await empRepo.find({ relations: ['manager'] });
+    const user = 1;
+    const employees = await empRepo.find({ relations: ['manager'],where:{isDeleted:false} });
     const result = employees.map((emp) => ({
       email: emp.email,
       fullName: emp.fullName,
@@ -125,7 +127,7 @@ export class EmployeeServices {
   }
 
   async getEmail(email: string) {
-    const res = await empRepo.findOne({ where: { email: email,isDeleted:false } })
+    const res = await empRepo.findOne({ where: { email: email, isDeleted: false } })
   }
   async getEmpByEmail(request: Request, h: ResponseToolkit) {
     const user = request?.plugins['user'];
@@ -133,7 +135,7 @@ export class EmployeeServices {
       return h.response({ message: "Unauthorized" }).code(401);
     }
     const { email } = request.params as any;
-    const res = await empRepo.findOne({ where: { email: email,isDeleted:false }, relations: ['manager'] })
+    const res = await empRepo.findOne({ where: { email: email, isDeleted: false }, relations: ['manager'] })
     if (!res) {
       return h.response({ message: "No user found" }).code(404);
     }
@@ -152,7 +154,7 @@ export class EmployeeServices {
   }
   async getEmployee(request: Request, h: ResponseToolkit) {
     const user = request?.plugins['user']
-    const res = await empRepo.findOne({ where: { id: user.id,isDeleted:false }, relations: ['manager'] });
+    const res = await empRepo.findOne({ where: { id: user.id, isDeleted: false }, relations: ['manager'] });
     const data: any = {
       id: res.id,
       email: res.email,
@@ -160,9 +162,14 @@ export class EmployeeServices {
       role: res.role,
       isManager: res.isManager,
       createdAt: res.createdAt,
+      manager: res.manager ? {
+        id: res.manager.id,
+        fullName: res.manager.fullName,
+        email: res.manager.email,
+      } : undefined
     };
-    if(!res){
-      return h.response({message:"User not found"}).code(404)
+    if (!res) {
+      return h.response({ message: "User not found" }).code(404)
     }
     return h.response(data).code(200)
   }
@@ -180,7 +187,6 @@ export class EmployeeServices {
 
   async checkAuthState(request: Request, h: ResponseToolkit) {
     const token = request.state.auth_token;
-
     if (!token) {
       return h.response().code(204);
     }
@@ -192,7 +198,7 @@ export class EmployeeServices {
   async updatePassword(request: Request, h: ResponseToolkit) {
     try {
       const user = request.plugins['user'];
-      const res = await empRepo.findOne({ where: { id: user.id,isDeleted:false } });
+      const res = await empRepo.findOne({ where: { id: user.id, isDeleted: false } });
       const { currentPassword, newPassword } = request.payload as any;
       const isPassword = await bcrypt.compare(currentPassword, res.password);
       if (!isPassword) {
@@ -220,9 +226,8 @@ export class EmployeeServices {
     }
 
     const { email, fullName, role, password, managerEmail }: any = request.payload;
-    console.log('Updating employee:', { email, fullName, role, password, managerEmail });
 
-    const employee = await empRepo.findOne({ where: { email,isDeleted:false } });
+    const employee = await empRepo.findOne({ where: { email, isDeleted: false } });
     if (!employee) {
       return h.response({ message: 'Employee not found' }).code(404);
     }
@@ -256,7 +261,6 @@ export class EmployeeServices {
 
     try {
       const updatedEmp = await empRepo.save(employee);
-      console.log('Updated employee:', updatedEmp);
       return h.response({ message: 'Employee updated successfully' }).code(200);
     } catch (err) {
       console.error('Error updating employee:', err);
@@ -271,10 +275,16 @@ export class EmployeeServices {
     }
     const { email, action } = request.payload as any;
     const emp = await empRepo.findOne({ where: { email } });
+    if (emp.isManager) {
+      return h.response({
+        message: "Employee has a team. Please re-assign manager before deleting."
+      }).code(409);
+    }
+
     const message: any = {}
     if (action == 'hardDelete') {
       const deleted = await empRepo.delete(emp.id);
-      if(!deleted.affected){
+      if (!deleted.affected) {
         return h.response({ message: "Deletion failed" }).code(404);
       }
       return h.response({ message: "Employee deleted successfully" }).code(200)
@@ -300,11 +310,11 @@ export class EmployeeServices {
       return h.response({ message: "Unauthorized" }).code(401);
     }
     const employees = await empRepo.find({ where: { isDeleted: true } });
-    const res = employees.map((emp)=>{
+    const res = employees.map((emp) => {
       return {
-        id:emp.id,
-        fullName:emp.fullName,
-        email:emp.email,
+        id: emp.id,
+        fullName: emp.fullName,
+        email: emp.email,
       }
     })
     return h.response({ res, message: "Employees get successfully" })

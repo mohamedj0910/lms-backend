@@ -21,7 +21,9 @@ export class LeaveDetailService {
       where: { employee: { id: userId } },
       relations: ['employee', 'leaveType'],
     });
-
+    if(!leaveDetails){
+      return h.response({message:"No Leave Details Found"}).code(404)
+    }
     const formatted = leaveDetails.map((detail) => ({
       leaveType: detail.leaveType.type,
       allocated: detail.allocated,

@@ -25,27 +25,36 @@ export class ApprovalServices {
 
     const leaveEmployee = approval.leaveRequest.employee;
 
-    // Determine which role is approving
     const isManager = leaveEmployee.manager?.id === user.id;
     const isHr = user.role === 'hr';
     const isDirector = user.role === 'director';
     if (status == 'rejected') {
-        approval.managerApproval = status;
-        approval.hrApproval = status;
-        approval.managerApproval = status;
+      approval.managerApproval = status;
+      approval.hrApproval = status;
+      approval.managerApproval = status;
+    }
+    else if (isDirector) {
+      approval.directorApproval = status;
+    }
+    else if(isHr && isManager){
+      const approveHr = approval.managerApproval=='approved' || approval.managerApproval=='not_required';
+      const approveManager = approval.managerApproval!='not_required'
+      if(approveHr){
+        approval.hrApproval = 'approved'
+      }
+      else if(approveManager){
+        approval.managerApproval = 'approved'
+      }
+    }
+    else if (isHr) {
+      approval.hrApproval = status;
     }
     else if (isManager) {
       approval.managerApproval = status;
-    } else if (isHr) {
-      approval.hrApproval = status;
-    } else if (isDirector) {
-      approval.directorApproval = status;
     } else {
       return h.response({ message: 'Unauthorized' }).code(403);
     }
-    console.log(approval)
 
-    // Determine overall status
     if (
       (approval.managerApproval === 'approved' || approval.managerApproval === 'not_required') &&
       (approval.hrApproval === 'approved' || approval.hrApproval === 'not_required') &&
